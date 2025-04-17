@@ -61,6 +61,7 @@ pub use struct_field_names_as_array_derive::FieldNamesAsSlice;
 ///
 pub trait FieldNamesAsArray<const N: usize> {
     const FIELD_NAMES_AS_ARRAY: [&'static str; N];
+    const FIELD_TYPES_AS_ARRAY: [&'static str; N];
 }
 
 /// Exposes the `FIELD_NAMES_AS_SLICE` constant.
@@ -72,4 +73,5 @@ pub trait FieldNamesAsArray<const N: usize> {
 ///
 pub trait FieldNamesAsSlice {
     const FIELD_NAMES_AS_SLICE: &'static [&'static str];
+    const FIELD_TYPES_AS_SLICE: &'static [&'static str];
 }

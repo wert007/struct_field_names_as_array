@@ -59,7 +59,7 @@ impl ParseAttributes for ContainerAttributes {
 }
 
 pub struct FieldAttributes {
-    skip: bool,
+    pub skip: bool,
     rename: Option<String>,
 }
 

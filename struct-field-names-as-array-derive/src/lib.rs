@@ -9,7 +9,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
@@ -40,7 +40,8 @@ pub fn derive_field_names_as_array(input: TokenStream) -> TokenStream {
         panic!("Derive(FieldNamesAsArray) only applicable to named structs");
     };
 
-    let field_names = field_names(named, &container_attributes).unwrap();
+    let field_names = field_names(&named, &container_attributes).unwrap();
+    let field_types = field_types(&named, &container_attributes).unwrap();
 
     let len = field_names.len();
 
@@ -48,6 +49,7 @@ pub fn derive_field_names_as_array(input: TokenStream) -> TokenStream {
         impl #impl_generics ::struct_field_names_as_array::FieldNamesAsArray<#len> for #name #type_generics #where_clause {
             #[doc=concat!("Generated array of field names for `", stringify!(#name #type_generics), "`.")]
             const FIELD_NAMES_AS_ARRAY: [&'static str; #len] = [#(#field_names),*];
+            const FIELD_TYPES_AS_ARRAY: [&'static str; #len] = [#(#field_types),*];
         }
     })
 }
@@ -72,18 +74,20 @@ pub fn derive_field_names_as_slice(input: TokenStream) -> TokenStream {
         panic!("Derive(FieldNamesAsSlice) only applicable to named structs");
     };
 
-    let field_names = field_names(named, &container_attributes).unwrap();
+    let field_names = field_names(&named, &container_attributes).unwrap();
+    let field_types = field_types(&named, &container_attributes).unwrap();
 
     TokenStream::from(quote! {
         impl #impl_generics ::struct_field_names_as_array::FieldNamesAsSlice for #name #type_generics #where_clause {
             #[doc=concat!("Generated slice of field names for `", stringify!(#name #type_generics), "`.")]
             const FIELD_NAMES_AS_SLICE: &'static [&'static str] = &[#(#field_names),*];
+            const FIELD_TYPES_AS_SLICE: &'static [&'static str] = &[#(#field_types),*];
         }
     })
 }
 
 fn field_names(
-    fields: Punctuated<Field, Comma>,
+    fields: &Punctuated<Field, Comma>,
     container_attributes: &ContainerAttributes,
 ) -> Result<Vec<String>> {
     let mut res = Vec::new();
@@ -92,7 +96,7 @@ fn field_names(
         let field_attributes =
             FieldAttributes::parse_attributes(container_attributes.attribute(), &field.attrs)?;
 
-        let Some(field) = field.ident else {
+        let Some(field) = &field.ident else {
             return Err(Error::new_spanned(field, "field must be a named field"));
         };
 
@@ -101,6 +105,26 @@ fn field_names(
         if let Some(field) = field_attributes.apply_to_field(&field) {
             res.push(field);
         }
+    }
+
+    Ok(res)
+}
+
+fn field_types(
+    fields: &Punctuated<Field, Comma>,
+    container_attributes: &ContainerAttributes,
+) -> Result<Vec<String>> {
+    let mut res = Vec::new();
+
+    for field in fields {
+        let field_attributes =
+            FieldAttributes::parse_attributes(container_attributes.attribute(), &field.attrs)?;
+        if field_attributes.skip {
+            continue;
+        }
+
+        let field = field.ty.to_token_stream().to_string();
+        res.push(field);
     }
 
     Ok(res)
